@@ -6,14 +6,22 @@
 
 package org.yuzu.yuzu_emu.utils
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.DocumentsContract
+import android.provider.Settings
+import android.widget.Toast
 import androidx.preference.PreferenceManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import org.yuzu.yuzu_emu.NativeLibrary
+import org.yuzu.yuzu_emu.R
 import org.yuzu.yuzu_emu.YuzuApplication
 import org.yuzu.yuzu_emu.model.Game
 import org.yuzu.yuzu_emu.model.GameDir
@@ -28,6 +36,7 @@ object GameHelper {
     var cachedGameList = mutableListOf<Game>()
 
     private lateinit var preferences: SharedPreferences
+    private var requestedAllFilesAccess = false
 
     fun getGames(): List<Game> {
         val games = mutableListOf<Game>()
@@ -143,6 +152,10 @@ object GameHelper {
         depth: Int,
         mountedContainerUris: MutableSet<String>
     ) {
+        if (addLooseExeFs(games, gamesByProgramId, files)) {
+            return
+        }
+
         if (depth <= 0) {
             return
         }
@@ -187,6 +200,57 @@ object GameHelper {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Switch 2 titles boot from a loose ExeFS, and the loader reads the files next to main and the
+     * romfs directory next to exefs. A content uri has no containing directory, so these games are
+     * kept by their real path, which needs All Files Access.
+     */
+    private fun addLooseExeFs(
+        games: MutableList<Game>,
+        gamesByProgramId: MutableMap<String, Game>,
+        files: Array<MinimalDocumentFile>
+    ): Boolean {
+        val main = files.find { it.filename == "main" } ?: return false
+        if (files.none { it.filename == "main.npdm" }) {
+            return false
+        }
+
+        val hasAllFilesAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+            Environment.isExternalStorageManager()
+        if (!hasAllFilesAccess) {
+            requestAllFilesAccess()
+            return true
+        }
+
+        val path = PathUtil.getPathFromDocumentUri(main.uri) ?: return true
+        val titleDir = File(path).parentFile?.parentFile?.name
+        val game = getGame(path.toUri(), true, false, titleDir) ?: return true
+        games.add(game)
+        if (game.programId != "0") {
+            gamesByProgramId[game.programId] = game
+        }
+        return true
+    }
+
+    private fun requestAllFilesAccess() {
+        if (requestedAllFilesAccess) {
+            return
+        }
+        requestedAllFilesAccess = true
+
+        val context = YuzuApplication.appContext
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, R.string.all_files_permission_loose_exefs, Toast.LENGTH_LONG)
+                .show()
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = "package:${context.packageName}".toUri()
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
         }
     }
 
@@ -258,7 +322,8 @@ object GameHelper {
     fun getGame(
         uri: Uri,
         addedToLibrary: Boolean,
-        registerFilesystemProvider: Boolean = true
+        registerFilesystemProvider: Boolean = true,
+        fallbackTitle: String? = null
     ): Game? {
         val filePath = uri.toString()
         if (!GameMetadata.getIsValid(filePath)) {
@@ -274,7 +339,7 @@ object GameHelper {
 
         // If the game's title field is empty, use the filename.
         if (name.isEmpty()) {
-            name = FileUtil.getFilename(uri)
+            name = fallbackTitle ?: FileUtil.getFilename(uri)
         }
         var programId = GameMetadata.getProgramId(filePath)
 

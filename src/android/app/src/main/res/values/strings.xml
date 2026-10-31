@@ -863,6 +863,7 @@
     <string name="save_directory_set">Save directory set</string>
     <string name="destination_has_saves">The destination already contains data. Do you want to overwrite it?</string>
     <string name="all_files_permission_required">All Files Access permission is required for custom paths</string>
+    <string name="all_files_permission_loose_exefs">Allow All Files Access to load Switch 2 ExeFS folders, then refresh the game list</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="custom_nand_directory">NAND Directory</string>
     <string name="custom_nand_directory_description">Set a custom path for NAND storage</string>

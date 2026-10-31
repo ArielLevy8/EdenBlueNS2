@@ -39,9 +39,11 @@ class AddGameFolderDialogFragment : DialogFragment() {
                     "calledFromGameFragment",
                     false
                 )
+                // Resolve this now, the dialog is detached by the time the scan completes
+                val viewModel = homeViewModel
                 val job = gamesViewModel.addFolder(newGameDir, calledFromGameFragment)
                 job.invokeOnCompletion {
-                    homeViewModel.setGamesDirSelected(true)
+                    viewModel.setGamesDirSelected(true)
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)

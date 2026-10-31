@@ -19,6 +19,23 @@ object PathUtil {
             return null
         }
 
+        return getPathFromDocumentId(docId)
+    }
+
+    /**
+     * Same as [getPathFromUri], for a document inside a tree rather than the tree's root.
+     */
+    fun getPathFromDocumentUri(uri: Uri): String? {
+        val docId = try {
+            DocumentsContract.getDocumentId(uri)
+        } catch (_: Exception) {
+            return null
+        }
+
+        return getPathFromDocumentId(docId)
+    }
+
+    private fun getPathFromDocumentId(docId: String): String? {
         if (docId.startsWith("primary:")) {
             val relativePath = docId.substringAfter(":")
             val primaryStoragePath = android.os.Environment.getExternalStorageDirectory().absolutePath

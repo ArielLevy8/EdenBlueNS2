@@ -9,6 +9,8 @@ package org.yuzu.yuzu_emu.model
 import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
+import androidx.documentfile.provider.DocumentFile
+import java.io.File
 import java.util.HashSet
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
@@ -34,6 +36,14 @@ class Game(
 ) : Parcelable {
     val keyAddedToLibraryTime get() = "${path}_AddedToLibraryTime"
     val keyLastPlayedTime get() = "${path}_LastPlayed"
+
+    // Loose ExeFS games are kept by their real path instead of a content uri
+    val exists: Boolean
+        get() = if (path.startsWith("/")) {
+            File(path).exists()
+        } else {
+            DocumentFile.fromSingleUri(YuzuApplication.appContext, Uri.parse(path))?.exists() == true
+        }
 
     val settingsName: String
         get() {

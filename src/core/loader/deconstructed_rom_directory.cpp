@@ -24,6 +24,11 @@
 #include "core/arm/nce/patcher.h"
 #endif
 
+#if defined(HAS_NCE) && defined(__ANDROID__)
+#include <asm/hwcap.h>
+#include <sys/auxv.h>
+#endif
+
 #ifndef HAS_NCE
 namespace Core::NCE {
 class Patcher {};
@@ -92,6 +97,19 @@ FileSys::VirtualFile FindLooseRomFS(const FileSys::VirtualDir& exefs_dir) {
         }
     }
     return nullptr;
+}
+
+// Switch 2 code uses RETAA/RETAB, LDAPR and LSE atomics. None are in the hint space, so a host
+// without them can't run it natively and needs Dynarmic, which decodes all three.
+bool HostCanExecuteNatively(const FileSys::ProgramMetadata& metadata) {
+#if defined(HAS_NCE) && defined(__ANDROID__)
+    constexpr unsigned long required = HWCAP_PACA | HWCAP_ATOMICS | HWCAP_LRCPC;
+    if (metadata.IsSwitch2() && (getauxval(AT_HWCAP) & required) != required) {
+        LOG_WARNING(Loader, "Host CPU lacks PAC, LSE or LRCPC, using Dynarmic for Switch 2 code");
+        return false;
+    }
+#endif
+    return true;
 }
 
 } // namespace
@@ -218,7 +236,7 @@ AppLoader_DeconstructedRomDirectory::LoadResult AppLoader_DeconstructedRomDirect
     const bool is_39bit =
         metadata.GetAddressSpaceType() == FileSys::ProgramAddressSpaceType::Is39Bit;
     const bool is_application = metadata.GetPoolPartition() == FileSys::PoolPartition::Application;
-    Settings::SetNceEnabled(is_39bit);
+    Settings::SetNceEnabled(is_39bit && HostCanExecuteNatively(metadata));
 
     const std::array static_modules = {"rtld",    "main",    "subsdk0", "subsdk1", "subsdk2",
                                        "subsdk3", "subsdk4", "subsdk5", "subsdk6", "subsdk7",

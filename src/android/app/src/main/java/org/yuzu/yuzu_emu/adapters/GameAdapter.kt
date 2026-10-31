@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
-import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
@@ -32,7 +31,6 @@ import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.utils.GameIconUtils
 import org.yuzu.yuzu_emu.utils.ViewUtils.marquee
 import org.yuzu.yuzu_emu.viewholder.AbstractViewHolder
-import androidx.core.net.toUri
 import androidx.core.content.edit
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.yuzu.yuzu_emu.NativeLibrary
@@ -227,12 +225,7 @@ class GameAdapter(private val activity: AppCompatActivity) :
         }
 
         fun onClick(game: Game) {
-            val gameExists = DocumentFile.fromSingleUri(
-                YuzuApplication.appContext,
-                game.path.toUri()
-            )?.exists() == true
-
-            if (!gameExists) {
+            if (!game.exists) {
                 Toast.makeText(
                     YuzuApplication.appContext,
                     R.string.loader_error_file_not_found,
