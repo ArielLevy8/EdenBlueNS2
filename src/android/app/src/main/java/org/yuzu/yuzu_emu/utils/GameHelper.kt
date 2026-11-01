@@ -33,14 +33,25 @@ object GameHelper {
     private const val KEY_OLD_GAME_PATH = "game_path"
     const val KEY_GAMES = "Games"
 
+    // Enough to find a game folder inside a couple of category folders
+    private const val GAME_SCAN_DEPTH = 4
+
     var cachedGameList = mutableListOf<Game>()
+
+    // Encrypted or Switch 1 games seen by the last scan, which can't be listed
+    var unsupportedGameCount = 0
+        private set
+
+    val hasAllFilesAccess: Boolean
+        get() = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+            Environment.isExternalStorageManager()
 
     private lateinit var preferences: SharedPreferences
     private var requestedAllFilesAccess = false
 
     fun getGames(): List<Game> {
         val games = mutableListOf<Game>()
-        val gamesByProgramId = mutableMapOf<String, Game>()
+        unsupportedGameCount = 0
         val context = YuzuApplication.appContext
         preferences = PreferenceManager.getDefaultSharedPreferences(context)
 
@@ -69,15 +80,7 @@ object GameHelper {
             val gameDirUri = gameDir.uriString.toUri()
             val isValid = FileUtil.isTreeUriValid(gameDirUri)
             if (isValid) {
-                val scanDepth = if (gameDir.deepScan) 3 else 1
-
-                addGamesRecursive(
-                    games,
-                    gamesByProgramId,
-                    FileUtil.listFiles(gameDirUri),
-                    scanDepth,
-                    mountedContainerUris
-                )
+                addGamesRecursive(games, FileUtil.listFiles(gameDirUri), GAME_SCAN_DEPTH)
             } else {
                 badDirs.add(index)
             }
@@ -147,12 +150,16 @@ object GameHelper {
 
     private fun addGamesRecursive(
         games: MutableList<Game>,
-        gamesByProgramId: MutableMap<String, Game>,
         files: Array<MinimalDocumentFile>,
-        depth: Int,
-        mountedContainerUris: MutableSet<String>
+        depth: Int
     ) {
-        if (addLooseExeFs(games, gamesByProgramId, files)) {
+        if (addLooseExeFs(games, files)) {
+            return
+        }
+
+        // The rest of a game folder is its romfs, which can hold thousands of files
+        files.find { it.isDirectory && it.filename == "exefs" }?.let {
+            addGamesRecursive(games, FileUtil.listFiles(it.uri), depth)
             return
         }
 
@@ -162,43 +169,9 @@ object GameHelper {
 
         files.forEach {
             if (it.isDirectory) {
-                addGamesRecursive(
-                    games,
-                    gamesByProgramId,
-                    FileUtil.listFiles(it.uri),
-                    depth - 1,
-                    mountedContainerUris
-                )
-            } else {
-                val extension = FileUtil.getExtension(it.uri).lowercase()
-                val filePath = it.uri.toString()
-
-                val mountedContainer = externalContentExtensions.contains(extension) &&
-                    mountedContainerUris.add(filePath)
-                if (mountedContainer) {
-                    NativeLibrary.addGameFolderFileToFilesystemProvider(filePath)
-                }
-
-                if (Game.extensions.contains(extension)) {
-                    val game = getGame(it.uri, true, false)
-                    if (game != null) {
-                        games.add(game)
-                        if (game.programId != "0") {
-                            gamesByProgramId[game.programId] = game
-                        }
-                    } else if (mountedContainer) {
-                        GameMetadata.getProgramId(filePath).toLongOrNull()?.let { programId ->
-                            gamesByProgramId[(programId and 0x800L.inv()).toString()]
-                        }?.let { existingGame ->
-                            NativeLibrary.getPatchesForFile(existingGame.path, existingGame.programId)
-                            existingGame.version = GameMetadata.getVersion(
-                                existingGame.path,
-                                true
-                            )
-                            GameIconUtils.refreshGameIcon(existingGame)
-                        }
-                    }
-                }
+                addGamesRecursive(games, FileUtil.listFiles(it.uri), depth - 1)
+            } else if (externalContentExtensions.contains(FileUtil.getExtension(it.uri).lowercase())) {
+                unsupportedGameCount++
             }
         }
     }
@@ -210,7 +183,6 @@ object GameHelper {
      */
     private fun addLooseExeFs(
         games: MutableList<Game>,
-        gamesByProgramId: MutableMap<String, Game>,
         files: Array<MinimalDocumentFile>
     ): Boolean {
         val main = files.find { it.filename == "main" } ?: return false
@@ -218,19 +190,22 @@ object GameHelper {
             return false
         }
 
-        val hasAllFilesAccess = Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
-            Environment.isExternalStorageManager()
         if (!hasAllFilesAccess) {
             requestAllFilesAccess()
             return true
         }
 
         val path = PathUtil.getPathFromDocumentUri(main.uri) ?: return true
-        val titleDir = File(path).parentFile?.parentFile?.name
+        if (!GameMetadata.getIsSwitch2(path)) {
+            unsupportedGameCount++
+            return true
+        }
+
+        val exeFsDir = File(path).parentFile
+        val titleDir = if (exeFsDir?.name == "exefs") exeFsDir.parentFile?.name else exeFsDir?.name
         val game = getGame(path.toUri(), true, false, titleDir) ?: return true
-        games.add(game)
-        if (game.programId != "0") {
-            gamesByProgramId[game.programId] = game
+        if (games.none { it.path == game.path }) {
+            games.add(game)
         }
         return true
     }
@@ -241,17 +216,24 @@ object GameHelper {
         }
         requestedAllFilesAccess = true
 
-        val context = YuzuApplication.appContext
         Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, R.string.all_files_permission_loose_exefs, Toast.LENGTH_LONG)
-                .show()
-            context.startActivity(
-                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = "package:${context.packageName}".toUri()
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            )
+            Toast.makeText(
+                YuzuApplication.appContext,
+                R.string.all_files_permission_loose_exefs,
+                Toast.LENGTH_LONG
+            ).show()
+            openAllFilesAccessSettings()
         }
+    }
+
+    fun openAllFilesAccessSettings() {
+        val context = YuzuApplication.appContext
+        context.startActivity(
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = "package:${context.packageName}".toUri()
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
     }
 
     private fun mountExternalContentDirectories(mountedContainerUris: MutableSet<String>) {

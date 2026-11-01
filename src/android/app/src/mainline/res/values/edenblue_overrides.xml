@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: Copyright 2026 EdenBlue Project -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
+<!-- Shared backgrounds, the splash and text glow use these outside of the app theme -->
+<resources>
+    <color name="eden_primary">#0A63C9</color>
+    <color name="eden_primary_variant">#0850A3</color>
+    <color name="eden_secondary">#2F6F8F</color>
+    <color name="eden_secondary_variant">#245A75</color>
+    <color name="eden_background">#F4F8FD</color>
+    <color name="eden_surface">#F4F8FD</color>
+    <color name="eden_surface_variant">#DCE6F2</color>
+    <color name="eden_accent_purple">#00838F</color>
+    <color name="eden_accent_blue">#0A63C9</color>
+    <color name="eden_glow_pink">#800A63C9</color>
+    <color name="eden_glow_cyan">#8000838F</color>
+    <color name="eden_border_gradient_start">#0A63C9</color>
+    <color name="eden_border_gradient_end">#00838F</color>
+    <color name="eden_button_primary_bg">#0A63C9</color>
+    <color name="eden_button_secondary_border">#00838F</color>
+    <color name="eden_primary_transparent">#050A63C9</color>
+    <color name="eden_secondary_transparent">#0500838F</color>
+</resources>

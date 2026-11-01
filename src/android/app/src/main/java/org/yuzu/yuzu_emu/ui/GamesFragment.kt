@@ -41,6 +41,7 @@ import org.yuzu.yuzu_emu.model.Game
 import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
 import org.yuzu.yuzu_emu.ui.main.MainActivity
+import org.yuzu.yuzu_emu.utils.GameHelper
 import org.yuzu.yuzu_emu.utils.ViewUtils.setVisible
 import org.yuzu.yuzu_emu.utils.collect
 import info.debatty.java.stringsimilarity.Jaccard
@@ -146,15 +147,20 @@ class GamesFragment : Fragment() {
 
         gamesViewModel.isReloading.collect(viewLifecycleOwner) {
             (binding.swipeRefresh as? SwipeRefreshLayout)?.isRefreshing = it
+            binding.noticeText.setText(
+                if (GameHelper.unsupportedGameCount > 0) {
+                    R.string.ns2_unsupported_games
+                } else {
+                    R.string.ns2_no_games
+                }
+            )
             binding.noticeText.setVisible(
                 visible = gamesViewModel.games.value.isEmpty() && !it,
                 gone = false
             )
         }
         gamesViewModel.games.collect(viewLifecycleOwner) {
-            if (it.isNotEmpty()) {
-                setAdapter(it)
-            }
+            setAdapter(it)
         }
         gamesViewModel.shouldSwapData.collect(
             viewLifecycleOwner,

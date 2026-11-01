@@ -28,9 +28,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.transition.MaterialSharedAxis
 import org.yuzu.yuzu_emu.HomeNavigationDirections
-import org.yuzu.yuzu_emu.NativeLibrary
 import org.yuzu.yuzu_emu.R
-import org.yuzu.yuzu_emu.YuzuApplication
 import org.yuzu.yuzu_emu.adapters.HomeSettingAdapter
 import org.yuzu.yuzu_emu.databinding.FragmentHomeSettingsBinding
 import org.yuzu.yuzu_emu.features.DocumentProvider
@@ -215,23 +213,6 @@ class HomeSettingsFragment : Fragment() {
             )
             add(
                 HomeSetting(
-                    R.string.applets,
-                    R.string.applets_description,
-                    R.drawable.ic_applet,
-                    {
-                        val action = HomeNavigationDirections.actionGlobalSettingsSubscreenActivity(
-                            SettingsSubscreen.APPLET_LAUNCHER,
-                            null
-                        )
-                        binding.root.findNavController().navigate(action)
-                    },
-                    { NativeLibrary.isFirmwareAvailable() },
-                    R.string.applets_error_firmware,
-                    R.string.applets_error_description
-                )
-            )
-            add(
-                HomeSetting(
                     R.string.manage_yuzu_data,
                     R.string.manage_yuzu_data_description,
                     R.drawable.ic_install,
@@ -255,44 +236,6 @@ class HomeSettingsFragment : Fragment() {
                             null
                         )
                         binding.root.findNavController().navigate(action)
-                    }
-                )
-            )
-            add(
-                HomeSetting(
-                    R.string.verify_installed_content,
-                    R.string.verify_installed_content_description,
-                    R.drawable.ic_check_circle,
-                    {
-                        ProgressDialogFragment.newInstance(
-                            requireActivity(),
-                            titleId = R.string.verifying,
-                            cancellable = true
-                        ) { progressCallback, _ ->
-                            val result = NativeLibrary.verifyInstalledContents(progressCallback)
-                            return@newInstance if (progressCallback.invoke(100, 100)) {
-                                // Invoke the progress callback to check if the process was cancelled
-                                MessageDialogFragment.newInstance(
-                                    titleId = R.string.verify_no_result,
-                                    descriptionId = R.string.verify_no_result_description
-                                )
-                            } else if (result.isEmpty()) {
-                                MessageDialogFragment.newInstance(
-                                    titleId = R.string.verify_success,
-                                    descriptionId = R.string.operation_completed_successfully
-                                )
-                            } else {
-                                val failedNames = result.joinToString("\n")
-                                val errorMessage = YuzuApplication.appContext.getString(
-                                    R.string.verification_failed_for,
-                                    failedNames
-                                )
-                                MessageDialogFragment.newInstance(
-                                    titleId = R.string.verify_failure,
-                                    descriptionString = errorMessage
-                                )
-                            }
-                        }.show(parentFragmentManager, ProgressDialogFragment.TAG)
                     }
                 )
             )

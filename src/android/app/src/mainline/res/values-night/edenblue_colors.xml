@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+SPDX-FileCopyrightText: Copyright 2026 EdenBlue Project
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<resources>
+    <color name="yuzu_primary_blue">#5CC8FF</color>
+    <color name="yuzu_onPrimary_blue">#00314A</color>
+    <color name="yuzu_primaryContainer_blue">#0B4A7A</color>
+    <color name="yuzu_onPrimaryContainer_blue">#D5EEFF</color>
+    <color name="yuzu_secondary_blue">#8FD3E8</color>
+    <color name="yuzu_secondaryContainer_blue">#13425A</color>
+    <color name="yuzu_onSecondaryContainer_blue">#CFEAF7</color>
+    <color name="yuzu_tertiary_blue">#5FE3D4</color>
+    <color name="yuzu_tertiaryContainer_blue">#0B4F52</color>
+    <color name="yuzu_onTertiaryContainer_blue">#C5F7F0</color>
+    <color name="yuzu_background_blue">#07121F</color>
+    <color name="yuzu_onBackground_blue">#E3EEF8</color>
+    <color name="yuzu_surface_blue">#07121F</color>
+    <color name="yuzu_onSurface_blue">#E3EEF8</color>
+    <color name="yuzu_surfaceVariant_blue">#16283A</color>
+    <color name="yuzu_onSurfaceVariant_blue">#B6C9DA</color>
+    <color name="yuzu_outline_blue">#4A6176</color>
+</resources>

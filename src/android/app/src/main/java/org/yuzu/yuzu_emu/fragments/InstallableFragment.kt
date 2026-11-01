@@ -23,7 +23,6 @@ import org.yuzu.yuzu_emu.R
 import org.yuzu.yuzu_emu.YuzuApplication
 import org.yuzu.yuzu_emu.adapters.InstallableAdapter
 import org.yuzu.yuzu_emu.databinding.FragmentInstallablesBinding
-import org.yuzu.yuzu_emu.model.AddonViewModel
 import org.yuzu.yuzu_emu.model.DriverViewModel
 import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
@@ -46,7 +45,6 @@ class InstallableFragment : Fragment() {
 
     private val homeViewModel: HomeViewModel by activityViewModels()
     private val gamesViewModel: GamesViewModel by activityViewModels()
-    private val addonViewModel: AddonViewModel by activityViewModels()
     private val driverViewModel: DriverViewModel by activityViewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,37 +122,6 @@ class InstallableFragment : Fragment() {
                         )
                     }
                 }
-            ),
-            Installable(
-                R.string.install_game_content,
-                R.string.install_game_content_description,
-                install = { installGameUpdateLauncher.launch(arrayOf("*/*")) }
-            ),
-            Installable(
-                R.string.install_firmware,
-                R.string.install_firmware_description,
-                install = { getFirmwareLauncher.launch(arrayOf("application/zip")) }
-            ),
-            Installable(
-                R.string.uninstall_firmware,
-                R.string.uninstall_firmware_description,
-                install = {
-                    InstallableActions.uninstallFirmware(
-                        activity = requireActivity(),
-                        fragmentManager = parentFragmentManager,
-                        homeViewModel = homeViewModel
-                    )
-                }
-            ),
-            Installable(
-                R.string.install_prod_keys,
-                R.string.install_prod_keys_description,
-                install = { getProdKeyLauncher.launch(arrayOf("*/*")) }
-            ),
-            Installable(
-                R.string.install_amiibo_keys,
-                R.string.install_amiibo_keys_description,
-                install = { getAmiiboKeyLauncher.launch(arrayOf("*/*")) }
             )
         )
 
@@ -185,55 +152,6 @@ class InstallableFragment : Fragment() {
             binding.listInstallables.updatePadding(bottom = barInsets.bottom)
 
             windowInsets
-        }
-
-    private val getProdKeyLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result != null) {
-                InstallableActions.processKey(
-                    activity = requireActivity(),
-                    fragmentManager = parentFragmentManager,
-                    gamesViewModel = gamesViewModel,
-                    result = result,
-                    extension = "keys"
-                )
-            }
-        }
-
-    private val getAmiiboKeyLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result != null) {
-                InstallableActions.processKey(
-                    activity = requireActivity(),
-                    fragmentManager = parentFragmentManager,
-                    gamesViewModel = gamesViewModel,
-                    result = result,
-                    extension = "bin"
-                )
-            }
-        }
-
-    private val getFirmwareLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result != null) {
-                InstallableActions.processFirmware(
-                    activity = requireActivity(),
-                    fragmentManager = parentFragmentManager,
-                    homeViewModel = homeViewModel,
-                    result = result
-                )
-            }
-        }
-
-    private val installGameUpdateLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { documents ->
-            InstallableActions.verifyAndInstallContent(
-                activity = requireActivity(),
-                fragmentManager = parentFragmentManager,
-                addonViewModel = addonViewModel,
-                documents = documents,
-                programId = addonViewModel.game?.programId
-            )
         }
 
     private val importUserDataLauncher =

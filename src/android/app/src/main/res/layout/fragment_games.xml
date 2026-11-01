@@ -212,7 +212,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:padding="@dimen/spacing_large"
-                android:text="@string/empty_gamelist"
+                android:text="@string/ns2_no_games"
                 android:textColor="?attr/colorOnBackground"
                 android:visibility="gone"
                 />

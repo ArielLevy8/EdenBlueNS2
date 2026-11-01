@@ -31,10 +31,10 @@ import org.yuzu.yuzu_emu.R
 import org.yuzu.yuzu_emu.databinding.ActivityMainBinding
 import org.yuzu.yuzu_emu.dialogs.NetPlayDialog
 import org.yuzu.yuzu_emu.features.settings.model.Settings
-import org.yuzu.yuzu_emu.fragments.AddGameFolderDialogFragment
 import org.yuzu.yuzu_emu.fragments.MessageDialogFragment
 import org.yuzu.yuzu_emu.model.AddonViewModel
 import org.yuzu.yuzu_emu.model.DriverViewModel
+import org.yuzu.yuzu_emu.model.GameDir
 import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
 import android.os.Build
@@ -68,8 +68,7 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
 
     override var themeId: Int = 0
 
-    private val CHECKED_DECRYPTION = "CheckedDecryption"
-    private var checkedDecryption = false
+    private var rescanGames = false
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(YuzuApplication.applyLanguage(base))
@@ -98,18 +97,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         }
 
         setContentView(binding.root)
-
-        if (savedInstanceState != null) {
-            checkedDecryption = savedInstanceState.getBoolean(CHECKED_DECRYPTION)
-        }
-        if (!checkedDecryption) {
-            val firstTimeSetup = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-                .getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
-            if (!firstTimeSetup) {
-                checkKeys()
-            }
-            checkedDecryption = true
-        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
@@ -152,9 +139,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             if (it != null) {
                 installContent(it)
             }
-        }
-        homeViewModel.checkKeys.collect(this, resetState = { homeViewModel.setCheckKeys(false) }) {
-            if (it) checkKeys()
         }
 
         // Dismiss previous notifications (should not happen unless a crash occurred)
@@ -299,19 +283,6 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         dialog.show()
     }
 
-    private fun checkKeys() {
-        if (!NativeLibrary.areKeysPresent()) {
-            MessageDialogFragment.newInstance(
-                titleId = R.string.keys_missing,
-                descriptionId = R.string.keys_missing_description,
-                helpLinkId = R.string.keys_missing_help
-            ).show(supportFragmentManager, MessageDialogFragment.TAG)
-        }
-    }
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putBoolean(CHECKED_DECRYPTION, checkedDecryption)
-    }
 
     fun finishSetup(navController: NavController) {
         navController.navigate(R.id.action_firstTimeSetupFragment_to_gamesFragment)
@@ -351,6 +322,17 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ThemeHelper.setCorrectTheme(this)
         super.onResume()
         applyFullscreenPreference()
+
+        // Pick up games copied while away, or a newly granted All Files Access
+        if (rescanGames && NativeLibrary.sEmulationActivity.get() == null) {
+            gamesViewModel.reloadGames(directoriesChanged = false)
+        }
+        rescanGames = false
+    }
+
+    override fun onStop() {
+        super.onStop()
+        rescanGames = true
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -422,8 +404,10 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             return
         }
 
-        AddGameFolderDialogFragment.newInstance(uriString, calledFromGameFragment)
-            .show(supportFragmentManager, AddGameFolderDialogFragment.TAG)
+        // Adding the folder scans it, and a rescan on resume would race with that
+        rescanGames = false
+        gamesViewModel.addFolder(GameDir(uriString, true), calledFromGameFragment)
+            .invokeOnCompletion { homeViewModel.setGamesDirSelected(true) }
     }
 
     fun processExternalContentDir(result: Uri) {

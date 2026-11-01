@@ -12,6 +12,9 @@
 -keep class org.libsdl.app.** { *; }
 -keepclassmembers class org.libsdl.app.** { *; }
 
+# Constructed from native code
+-keep class org.yuzu.yuzu_emu.model.GameDir { *; }
+
 # Suppress warnings for R8
 -dontwarn org.bouncycastle.jsse.BCSSLParameters
 -dontwarn org.bouncycastle.jsse.BCSSLSocket

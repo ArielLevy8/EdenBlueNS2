@@ -32,16 +32,7 @@ object ThemeHelper {
 
     fun setTheme(activity: AppCompatActivity) {
         setThemeMode(activity)
-        when (Theme.from(IntSetting.THEME.getInt())) {
-            Theme.Default -> activity.setTheme(getSelectedStaticThemeColor())
-            Theme.MaterialYou -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    activity.setTheme(R.style.Theme_Yuzu_Main_MaterialYou)
-                } else {
-                    activity.setTheme(getSelectedStaticThemeColor())
-                }
-            }
-        }
+        activity.setTheme(R.style.Theme_Yuzu_Main_Blue)
 
         // Using a specific night mode check because this could apply incorrectly when using the
         // light app mode, dark system mode, and black backgrounds. Launching the settings activity
@@ -49,23 +40,6 @@ object ThemeHelper {
         if (BooleanSetting.BLACK_BACKGROUNDS.getBoolean() && isNightMode(activity)) {
             activity.setTheme(R.style.ThemeOverlay_Yuzu_Dark)
         }
-    }
-
-    private fun getSelectedStaticThemeColor(): Int {
-        val themeIndex = IntSetting.STATIC_THEME_COLOR.getInt(false)
-        val themes = arrayOf(
-            R.style.Theme_Eden_Main,
-            R.style.Theme_Yuzu_Main_Violet,
-            R.style.Theme_Yuzu_Main_Blue,
-            R.style.Theme_Yuzu_Main_Cyan,
-            R.style.Theme_Yuzu_Main_Red,
-            R.style.Theme_Yuzu_Main_Green,
-            R.style.Theme_Yuzu_Main_Yellow,
-            R.style.Theme_Yuzu_Main_Orange,
-            R.style.Theme_Yuzu_Main_Pink,
-            R.style.Theme_Yuzu_Main_Gray
-        )
-        return themes[themeIndex]
     }
 
     @ColorInt

@@ -8,6 +8,7 @@
 #include "core/core.h"
 #include "core/file_sys/fs_filesystem.h"
 #include "core/file_sys/patch_manager.h"
+#include "core/file_sys/program_metadata.h"
 #include "core/loader/loader.h"
 #include "core/loader/nro.h"
 #include "native.h"
@@ -85,6 +86,14 @@ jboolean Java_org_yuzu_yuzu_1emu_utils_GameMetadata_getIsValid(JNIEnv* env, jobj
         }
     }
     return false;
+}
+
+jboolean Java_org_yuzu_yuzu_1emu_utils_GameMetadata_getIsSwitch2(JNIEnv* env, jobject obj, jstring jpath) {
+    const auto file = EmulationSession::GetInstance().System().GetFilesystem()->OpenFile(Common::Android::GetJString(env, jpath), FileSys::OpenMode::Read);
+    const auto dir = file != nullptr ? file->GetContainingDirectory() : nullptr;
+    const auto npdm = dir != nullptr ? dir->GetFile("main.npdm") : nullptr;
+    FileSys::ProgramMetadata metadata;
+    return npdm != nullptr && metadata.Load(npdm) == Loader::ResultStatus::Success && metadata.IsSwitch2();
 }
 
 jstring Java_org_yuzu_yuzu_1emu_utils_GameMetadata_getTitle(JNIEnv* env, jobject obj, jstring jpath) {

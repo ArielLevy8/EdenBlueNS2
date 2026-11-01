@@ -26,8 +26,6 @@ import androidx.navigation.findNavController
 import androidx.preference.PreferenceManager
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback
 import com.google.android.material.transition.MaterialFadeThrough
-import org.yuzu.yuzu_emu.NativeLibrary
-import java.io.File
 import org.yuzu.yuzu_emu.R
 import org.yuzu.yuzu_emu.YuzuApplication
 import org.yuzu.yuzu_emu.adapters.SetupAdapter
@@ -41,8 +39,7 @@ import org.yuzu.yuzu_emu.model.SetupCallback
 import org.yuzu.yuzu_emu.model.SetupPage
 import org.yuzu.yuzu_emu.model.PageState
 import org.yuzu.yuzu_emu.ui.main.MainActivity
-import org.yuzu.yuzu_emu.utils.DirectoryInitialization
-import org.yuzu.yuzu_emu.utils.LosslessScalingHelper
+import org.yuzu.yuzu_emu.utils.GameHelper
 import org.yuzu.yuzu_emu.utils.NativeConfig
 import org.yuzu.yuzu_emu.utils.ViewUtils
 import org.yuzu.yuzu_emu.utils.ViewUtils.setVisible
@@ -108,7 +105,7 @@ class SetupFragment : Fragment() {
                 SetupPage(
                     R.drawable.ic_permission,
                     R.string.permissions,
-                    R.string.permissions_description,
+                    R.string.ns2_permissions_description,
                     mutableListOf<PageButton>().apply {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             add(
@@ -136,10 +133,32 @@ class SetupFragment : Fragment() {
                                 )
                             )
                         }
+                        add(
+                            PageButton(
+                                R.drawable.ic_folder_open,
+                                R.string.ns2_all_files_access,
+                                R.string.ns2_all_files_access_description,
+                                {
+                                    pageButtonCallback = it
+                                    GameHelper.openAllFilesAccessSettings()
+                                },
+                                {
+                                    if (GameHelper.hasAllFilesAccess) {
+                                        ButtonState.BUTTON_ACTION_COMPLETE
+                                    } else {
+                                        ButtonState.BUTTON_ACTION_INCOMPLETE
+                                    }
+                                },
+                                false,
+                                true,
+                                R.string.ns2_all_files_access_warning,
+                                R.string.ns2_all_files_access_warning_description,
+                            )
+                        )
                     },
                     {
                         if (NotificationManagerCompat.from(requireContext())
-                                .areNotificationsEnabled()
+                                .areNotificationsEnabled() && GameHelper.hasAllFilesAccess
                         ) {
                             PageState.COMPLETE
                         } else {
@@ -151,81 +170,14 @@ class SetupFragment : Fragment() {
             add(
                 SetupPage(
                     R.drawable.ic_folder_open,
-                    R.string.emulator_data,
-                    R.string.emulator_data_description,
+                    R.string.ns2_setup_games,
+                    R.string.ns2_setup_games_description,
                     mutableListOf<PageButton>().apply {
-                        add(
-                            PageButton(
-                                R.drawable.ic_key,
-                                R.string.keys,
-                                R.string.keys_description,
-                                {
-                                    pageButtonCallback = it
-                                    getProdKey.launch(arrayOf("*/*"))
-                                },
-                                {
-                                    val file = File(
-                                        DirectoryInitialization.userDirectory + "/keys/prod.keys"
-                                    )
-                                    if (file.exists() && NativeLibrary.areKeysPresent()) {
-                                        ButtonState.BUTTON_ACTION_COMPLETE
-                                    } else {
-                                        ButtonState.BUTTON_ACTION_INCOMPLETE
-                                    }
-                                },
-                                false,
-                                true,
-                                R.string.install_prod_keys_warning,
-                                R.string.install_prod_keys_warning_description,
-                                R.string.install_prod_keys_warning_help,
-                            )
-                        )
-                        add(
-                            PageButton(
-                                R.drawable.ic_firmware,
-                                R.string.firmware,
-                                R.string.firmware_description,
-                                {
-                                    pageButtonCallback = it
-                                    getFirmware.launch(arrayOf("application/zip"))
-                                },
-                                {
-                                    if (NativeLibrary.isFirmwareAvailable()) {
-                                        ButtonState.BUTTON_ACTION_COMPLETE
-                                    } else {
-                                        ButtonState.BUTTON_ACTION_INCOMPLETE
-                                    }
-                                },
-                                false,
-                                true,
-                                R.string.install_firmware_warning,
-                                R.string.install_firmware_warning_description,
-                                R.string.install_firmware_warning_help,
-                            )
-                        )
-                        add(
-                            PageButton(
-                                R.drawable.ic_duck,
-                                R.string.lossless_scaling,
-                                R.string.lossless_scaling_setup_description,
-                                {
-                                    pageButtonCallback = it
-                                    getLosslessDll.launch(arrayOf("*/*"))
-                                },
-                                {
-                                    if (LosslessScalingHelper.isInstalled()) {
-                                        ButtonState.BUTTON_ACTION_COMPLETE
-                                    } else {
-                                        ButtonState.BUTTON_ACTION_INCOMPLETE
-                                    }
-                                }
-                            )
-                        )
                         add(
                             PageButton(
                                 R.drawable.ic_controller,
                                 R.string.games,
-                                R.string.games_description,
+                                R.string.ns2_games_folder_description,
                                 {
                                     pageButtonCallback = it
                                     getGamesDirectory.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).data)
@@ -246,13 +198,7 @@ class SetupFragment : Fragment() {
                         )
                     },
                     {
-                        val file = File(
-                            DirectoryInitialization.userDirectory + "/keys/prod.keys"
-                        )
-                        if (file.exists() && NativeLibrary.areKeysPresent() &&
-                            NativeLibrary.isFirmwareAvailable() && NativeConfig.getGameDirs()
-                                .isNotEmpty()
-                        ) {
+                        if (NativeConfig.getGameDirs().isNotEmpty()) {
                             PageState.COMPLETE
                         } else {
                             PageState.INCOMPLETE
@@ -393,6 +339,14 @@ class SetupFragment : Fragment() {
     }
 
 
+    override fun onResume() {
+        super.onResume()
+        // All Files Access is granted from the system settings
+        if (::pageButtonCallback.isInitialized) {
+            checkForButtonState.invoke()
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         NativeConfig.saveGlobalConfig()
@@ -443,53 +397,6 @@ class SetupFragment : Fragment() {
             }
         }
 
-
-    val getProdKey =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result != null) {
-                mainActivity.processKey(result, "keys")
-                if (NativeLibrary.areKeysPresent()) {
-                    checkForButtonState.invoke()
-                }
-            }
-        }
-
-    val getFirmware =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result != null) {
-                mainActivity.processFirmware(result) {
-                    if (NativeLibrary.isFirmwareAvailable()) {
-                        checkForButtonState.invoke()
-                    }
-                }
-            }
-        }
-
-    val getLosslessDll =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->
-            if (result == null) {
-                return@registerForActivityResult
-            }
-
-            val resultStrings = resources.getStringArray(R.array.losslessDllResults)
-            ProgressDialogFragment.newInstance(
-                requireActivity(),
-                R.string.lossless_scaling_installing,
-                false
-            ) { _, _ ->
-                val installResult = LosslessScalingHelper.install(result)
-                if (installResult == LosslessScalingHelper.RESULT_OK) {
-                    getString(R.string.lossless_scaling_install_success)
-                } else {
-                    MessageDialogFragment.newInstance(
-                        titleId = R.string.lossless_scaling_install_failed,
-                        descriptionString = resultStrings[installResult]
-                    )
-                }
-            }.apply {
-                onDialogComplete = { checkForButtonState.invoke() }
-            }.show(parentFragmentManager, ProgressDialogFragment.TAG)
-        }
 
     val getGamesDirectory =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { result ->

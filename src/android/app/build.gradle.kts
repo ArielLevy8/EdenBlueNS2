@@ -140,7 +140,7 @@ android {
                 manifestPlaceholders += mapOf("appNameSuffix" to " Nightly")
             } else {
                 applicationIdSuffix = ".nx2"
-                manifestPlaceholders += mapOf("appNameSuffix" to " NX2")
+                manifestPlaceholders += mapOf("appNameSuffix" to "")
             }
 
             isMinifyEnabled = true
@@ -191,8 +191,8 @@ android {
             isDefault = true
             minSdk = 33
 
-            manifestPlaceholders += mapOf("appNameBase" to "Eden")
-            resValue("string", "app_name_suffixed", "Eden")
+            manifestPlaceholders += mapOf("appNameBase" to "EdenBlue NS2")
+            resValue("string", "app_name_suffixed", "EdenBlue NS2")
 
             ndk {
                 abiFilters += listOf("arm64-v8a")
@@ -271,7 +271,7 @@ android {
 
         // apply nightly suffix I/A
         resValue("string", "app_name_suffixed", "$currentName$suffix")
-        resValue("string", "app_name", "Eden$suffix")
+        resValue("string", "app_name", "$currentName$suffix")
     }
 
     sourceSets {

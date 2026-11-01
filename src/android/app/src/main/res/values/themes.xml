@@ -97,6 +97,7 @@
         <item name="colorOnSurface">@color/yuzu_onSurface_blue</item>
         <item name="colorSurfaceVariant">@color/yuzu_surfaceVariant_blue</item>
         <item name="colorOnSurfaceVariant">@color/yuzu_onSurfaceVariant_blue</item>
+        <item name="colorControlNormal">@color/yuzu_onSurfaceVariant_blue</item>
         <item name="colorOutline">@color/yuzu_outline_blue</item>
         <item name="colorOnSurfaceInverse">@color/yuzu_inverseOnSurface_blue</item>
         <item name="colorSurfaceInverse">@color/yuzu_inverseSurface_blue</item>
