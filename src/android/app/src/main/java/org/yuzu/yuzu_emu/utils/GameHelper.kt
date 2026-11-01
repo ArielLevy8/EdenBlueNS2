@@ -50,7 +50,7 @@ object GameHelper {
     private var requestedAllFilesAccess = false
 
     fun getGames(): List<Game> {
-        val games = mutableListOf<Game>()
+        val foundGames = mutableListOf<Game>()
         unsupportedGameCount = 0
         val context = YuzuApplication.appContext
         preferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -80,8 +80,8 @@ object GameHelper {
             val gameDirUri = gameDir.uriString.toUri()
             val isValid = FileUtil.isTreeUriValid(gameDirUri)
             if (isValid) {
-                addGamesRecursive(games, FileUtil.listFiles(gameDirUri), GAME_SCAN_DEPTH)
-            } else {
+                addGamesRecursive(foundGames, FileUtil.listFiles(gameDirUri), GAME_SCAN_DEPTH)
+            } else if (context.contentResolver.persistedUriPermissions.none { it.uri == gameDirUri }) {
                 badDirs.add(index)
             }
         }
@@ -94,7 +94,13 @@ object GameHelper {
                 offset++
             }
         }
-        NativeConfig.setGameDirs(gameDirs.toTypedArray())
+
+        // Setting these clears the list first, and a config save at that moment would lose it
+        if (badDirs.isNotEmpty() || oldGamesDir.isNotEmpty()) {
+            NativeConfig.setGameDirs(gameDirs.toTypedArray())
+        }
+
+        val games = keepBestVersions(foundGames)
 
         // Cache list of games found on disk
         val serializedGames = mutableSetOf<String>()
@@ -201,14 +207,47 @@ object GameHelper {
             return true
         }
 
-        val exeFsDir = File(path).parentFile
-        val titleDir = if (exeFsDir?.name == "exefs") exeFsDir.parentFile?.name else exeFsDir?.name
-        val game = getGame(path.toUri(), true, false, titleDir) ?: return true
+        val game = getGame(path.toUri(), true, false, getTitleDir(File(path))?.name) ?: return true
         if (games.none { it.path == game.path }) {
             games.add(game)
         }
         return true
     }
+
+    /**
+     * A dump can hold base and updates/<version> side by side, each with its own exefs, and only
+     * some of them with a romfs. Those are one game, so list the newest copy that has a romfs.
+     */
+    private fun keepBestVersions(games: List<Game>): List<Game> =
+        games.groupBy { getTitleDir(File(it.path)) to it.programId }.values.map { versions ->
+            versions.maxWith(
+                compareBy<Game>(
+                    { hasRomFs(File(it.path)) },
+                    { getContentDir(File(it.path))?.name?.toLongOrNull() ?: 0L }
+                )
+            )
+        }
+
+    private fun getContentDir(main: File): File? {
+        val exeFsDir = main.parentFile
+        return if (exeFsDir?.name == "exefs") exeFsDir.parentFile else exeFsDir
+    }
+
+    private fun getTitleDir(main: File): File? {
+        val contentDir = getContentDir(main)
+        val updatesDir = contentDir?.parentFile
+        return when {
+            contentDir?.name == "base" -> updatesDir
+            updatesDir?.name == "updates" && contentDir.name.toLongOrNull() != null ->
+                updatesDir.parentFile
+            else -> contentDir
+        }
+    }
+
+    // Matches the loader, which takes a .romfs file next to main or a romfs directory next to exefs
+    private fun hasRomFs(main: File): Boolean =
+        main.parentFile?.listFiles()?.any { it.extension == "romfs" } == true ||
+            getContentDir(main)?.resolve("romfs")?.isDirectory == true
 
     private fun requestAllFilesAccess() {
         if (requestedAllFilesAccess) {
